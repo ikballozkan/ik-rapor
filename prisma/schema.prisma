@@ -1,0 +1,120 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  IK_UZMANI
+  IK_MUDURU
+  YONETICI
+  ADMIN
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(IK_UZMANI)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model KpiRecord {
+  id        String   @id @default(cuid())
+  year      Int
+  month     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  turnover     TurnoverStat?
+  absenteeism  AbsenteeismStat?
+  overtime     OvertimeStat?
+  training     TrainingStat?
+  accident     AccidentStat?
+
+  @@unique([year, month])
+}
+
+model TurnoverStat {
+  id               String    @id @default(cuid())
+  kpiRecordId      String    @unique
+  startCount       Int
+  endCount         Int
+  leftCount        Int
+  turnoverRate     Float?    // Auto-calculated
+
+  kpiRecord        KpiRecord @relation(fields: [kpiRecordId], references: [id], onDelete: Cascade)
+}
+
+model AbsenteeismStat {
+  id               String    @id @default(cuid())
+  kpiRecordId      String    @unique
+  paidLeave        Float
+  unpaidLeave      Float
+  sickLeave        Float
+  absent           Float
+  
+  // By Department
+  shiftA           Float @default(0)
+  shiftB           Float @default(0)
+  shiftC           Float @default(0)
+  warehouse        Float @default(0)
+  whiteCollar      Float @default(0)
+
+  kpiRecord        KpiRecord @relation(fields: [kpiRecordId], references: [id], onDelete: Cascade)
+}
+
+model OvertimeStat {
+  id               String    @id @default(cuid())
+  kpiRecordId      String    @unique
+  
+  // By Department
+  shiftA           Float @default(0)
+  shiftB           Float @default(0)
+  shiftC           Float @default(0)
+  warehouse        Float @default(0)
+  admin            Float @default(0)
+  whiteCollar      Float @default(0)
+
+  kpiRecord        KpiRecord @relation(fields: [kpiRecordId], references: [id], onDelete: Cascade)
+}
+
+model TrainingStat {
+  id               String    @id @default(cuid())
+  kpiRecordId      String    @unique
+  
+  technicalCount   Int     @default(0)
+  technicalHours   Float   @default(0)
+  isgCount         Int     @default(0)
+  isgHours         Float   @default(0)
+  managementCount  Int     @default(0)
+  managementHours  Float   @default(0)
+
+  kpiRecord        KpiRecord @relation(fields: [kpiRecordId], references: [id], onDelete: Cascade)
+}
+
+model AccidentStat {
+  id               String    @id @default(cuid())
+  kpiRecordId      String    @unique
+  
+  totalAccidents   Int     @default(0)
+  
+  // By Department
+  operator         Int     @default(0)
+  capak            Int     @default(0)
+  aksesuar         Int     @default(0)
+  paketleme        Int     @default(0)
+  depo             Int     @default(0)
+  idariIsler       Int     @default(0)
+  beyazYaka        Int     @default(0)
+
+  kpiRecord        KpiRecord @relation(fields: [kpiRecordId], references: [id], onDelete: Cascade)
+}
