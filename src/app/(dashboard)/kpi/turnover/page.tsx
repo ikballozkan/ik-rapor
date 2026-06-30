@@ -70,7 +70,7 @@ export default function TurnoverKpiPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Yıl</Label>
-                  <Select value={year} onValueChange={setYear}>
+                  <Select value={year} onValueChange={(val) => val && setYear(val)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Yıl Seçin" />
                     </SelectTrigger>
@@ -83,7 +83,7 @@ export default function TurnoverKpiPage() {
                 </div>
                 <div className="space-y-2">
                   <Label>Ay</Label>
-                  <Select value={month} onValueChange={setMonth}>
+                  <Select value={month} onValueChange={(val) => val && setMonth(val)}>
                     <SelectTrigger>
                       <SelectValue placeholder="Ay Seçin" />
                     </SelectTrigger>

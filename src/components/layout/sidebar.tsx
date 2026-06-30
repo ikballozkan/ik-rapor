@@ -10,10 +10,12 @@ import {
   GitCompare,
   Users,
   Settings,
+  UserCheck,
 } from "lucide-react";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
+  { name: "Aktif Personel", href: "/personel", icon: UserCheck },
   { name: "KPI Yönetimi", href: "/kpi", icon: BarChart2 },
   { name: "Raporlar", href: "/reports", icon: FileText },
   { name: "Karşılaştırmalar", href: "/comparisons", icon: GitCompare },
@@ -21,8 +23,33 @@ const navigation = [
   { name: "Sistem Ayarları", href: "/settings", icon: Settings },
 ];
 
+import { useState, useEffect } from "react";
+
 export function Sidebar() {
   const pathname = usePathname();
+  const [activeUser, setActiveUser] = useState<any>(null);
+
+  useEffect(() => {
+    const u = localStorage.getItem("trizone_active_user");
+    if (u) {
+      setActiveUser(JSON.parse(u));
+    }
+    const handleAuthChange = () => {
+      const updated = localStorage.getItem("trizone_active_user");
+      setActiveUser(updated ? JSON.parse(updated) : null);
+    };
+    window.addEventListener("auth-changed", handleAuthChange);
+    return () => window.removeEventListener("auth-changed", handleAuthChange);
+  }, []);
+
+  const isAdmin = activeUser?.role === "ADMIN";
+
+  const filteredNavigation = navigation.filter(item => {
+    if (item.href === "/users") {
+      return isAdmin;
+    }
+    return true;
+  });
 
   return (
     <div className="flex h-full w-64 flex-col bg-slate-900 border-r border-slate-800 text-white">
@@ -31,7 +58,7 @@ export function Sidebar() {
       </div>
       <div className="flex flex-1 flex-col overflow-y-auto pt-5 pb-4">
         <nav className="flex-1 space-y-1 px-3">
-          {navigation.map((item) => {
+          {filteredNavigation.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
             return (
               <Link
