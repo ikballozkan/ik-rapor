@@ -1,12 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import {
-  PERSONNEL_DATA,
-  LATEST_PERSONNEL,
-  PREV_PERSONNEL,
-  percentChange,
-} from "@/lib/personnel-data";
+import { usePersonnelData } from "@/lib/use-personnel-data";
+import { percentChange } from "@/lib/personnel-data";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Users,
@@ -63,8 +59,9 @@ const renderCustomLabel = ({
 };
 
 export default function PersonelPage() {
-  const current = LATEST_PERSONNEL; // Haziran (isCurrentMonth: true)
-  const previous = PREV_PERSONNEL;  // Mayıs
+  const { latest: current, prev: previous, allData: PERSONNEL_DATA_LIVE, ready } = usePersonnelData();
+
+  if (!ready) return null;
 
   const genderData = [
     { name: "Erkek", value: current.erkek },
@@ -79,7 +76,7 @@ export default function PersonelPage() {
   const kadinChange = percentChange(current.kadin, previous.kadin);
 
   // Tüm aylara ait cinsiyet verileri (trend için)
-  const allGenderTrend = PERSONNEL_DATA.filter((r) => r.toplamPersonel > 0).map((r) => ({
+  const allGenderTrend = PERSONNEL_DATA_LIVE.filter((r) => r.toplamPersonel > 0).map((r) => ({
     name: r.ay.charAt(0) + r.ay.slice(1).toLowerCase().substring(0, 2),
     Erkek: r.erkek,
     Kadın: r.kadin,
@@ -410,7 +407,7 @@ export default function PersonelPage() {
                 </tr>
               </thead>
               <tbody>
-                {PERSONNEL_DATA.filter((r) => r.toplamPersonel > 0).map((r, idx) => {
+                {PERSONNEL_DATA_LIVE.filter((r) => r.toplamPersonel > 0).map((r, idx) => {
                   const eOran = ((r.erkek / r.toplamPersonel) * 100).toFixed(1);
                   const kOran = ((r.kadin / r.toplamPersonel) * 100).toFixed(1);
                   return (

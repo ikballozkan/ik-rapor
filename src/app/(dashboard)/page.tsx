@@ -1,12 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import {
-  PERSONNEL_DATA,
-  LATEST_PERSONNEL,
-  PREV_PERSONNEL,
-  percentChange,
-} from "@/lib/personnel-data";
+import { usePersonnelData } from "@/lib/use-personnel-data";
 import { getTrendData } from "@/app/actions";
 import {
   Users, UserPlus, UserMinus, TrendingUp, TrendingDown,
@@ -90,41 +85,18 @@ const renderPieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, value }: a
 
 export default function DashboardPage() {
   const [trendData, setTrendData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [kpiLoading, setKpiLoading] = useState(true);
+  const { latest, prev, changes, personnelTrend, genderData, ready } = usePersonnelData();
 
   useEffect(() => {
-    getTrendData().then(d => { setTrendData(d); setLoading(false); });
+    getTrendData().then(d => { setTrendData(d); setKpiLoading(false); });
   }, []);
 
-  if (loading) return (
+  if (!ready || kpiLoading) return (
     <div className="flex h-[80vh] items-center justify-center">
       <Loader2 className="h-8 w-8 animate-spin text-[#1F497D]" />
     </div>
   );
-
-  const latest = LATEST_PERSONNEL;
-  const prev   = PREV_PERSONNEL;
-
-  const changes = {
-    toplam: percentChange(latest.toplamPersonel, prev.toplamPersonel),
-    giris:  percentChange(latest.girisaSayisi,   prev.girisaSayisi),
-    cikis:  percentChange(latest.ayniAyCikisSayisi, prev.ayniAyCikisSayisi),
-  };
-
-  const genderData = [
-    { name: "Erkek", value: latest.erkek },
-    { name: "Kadın", value: latest.kadin },
-  ];
-
-  const personnelTrend = PERSONNEL_DATA.filter(r => r.toplamPersonel > 0).map(r => ({
-    name: r.ay.charAt(0) + r.ay.slice(1).toLowerCase().substring(0, 2),
-    "Toplam": r.toplamPersonel,
-    "Erkek": r.erkek,
-    "Kadın": r.kadin,
-    "Giriş": r.girisaSayisi,
-    "Çıkış": r.ayniAyCikisSayisi,
-    current: r.isCurrentMonth,
-  }));
 
   const lastKpi = trendData.length > 0 ? trendData[trendData.length - 1]
     : { sirkulasyon: 0, devamsizlik: 0, fazlaMesai: 0, isKazasi: 0 };
