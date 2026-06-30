@@ -337,26 +337,39 @@ export async function setFirstLoginDone(id: string) {
 
 const BLOB_PATHNAME = "personel-overrides.json";
 
+// Blob URL'sini bellekte tut (cold start'lar arası erişim için)
+let _cachedBlobUrl: string | null = null;
+
 async function readOverridesBlob(): Promise<Record<number, any>> {
   try {
     const { list } = await import("@vercel/blob");
-    const { blobs } = await list({ prefix: BLOB_PATHNAME });
-    if (blobs.length === 0) return {};
-    const res = await fetch(blobs[0].url, { cache: "no-store" });
-    if (!res.ok) return {};
+    // Önce bilinen URL'den dene, yoksa list ile bul
+    let url = _cachedBlobUrl;
+    if (!url) {
+      const { blobs } = await list({ prefix: BLOB_PATHNAME });
+      if (blobs.length === 0) return {};
+      url = blobs[0].url;
+      _cachedBlobUrl = url;
+    }
+    const res = await fetch(`${url}?t=${Date.now()}`, { cache: "no-store" });
+    if (!res.ok) {
+      _cachedBlobUrl = null;
+      return {};
+    }
     return await res.json();
   } catch {
+    _cachedBlobUrl = null;
     return {};
   }
 }
 
 async function writeOverridesBlob(data: Record<number, any>) {
   const { put } = await import("@vercel/blob");
-  await put(BLOB_PATHNAME, JSON.stringify(data), {
+  const result = await put(BLOB_PATHNAME, JSON.stringify(data), {
     access: "public",
     addRandomSuffix: false,
-    allowOverwrite: true,
   });
+  _cachedBlobUrl = result.url;
 }
 
 /** Tüm personel override'larını Blob'dan oku */
