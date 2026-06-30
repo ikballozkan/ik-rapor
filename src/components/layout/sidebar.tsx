@@ -11,6 +11,7 @@ import {
   Users,
   Settings,
   UserCheck,
+  ClipboardEdit,
 } from "lucide-react";
 
 const navigation = [
@@ -19,6 +20,7 @@ const navigation = [
   { name: "KPI Yönetimi", href: "/kpi", icon: BarChart2 },
   { name: "Raporlar", href: "/reports", icon: FileText },
   { name: "Karşılaştırmalar", href: "/comparisons", icon: GitCompare },
+  { name: "Veri Güncelle", href: "/veri-guncelle", icon: ClipboardEdit, editOnly: false },
   { name: "Kullanıcı Yönetimi", href: "/users", icon: Users },
   { name: "Sistem Ayarları", href: "/settings", icon: Settings },
 ];
