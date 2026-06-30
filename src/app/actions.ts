@@ -333,26 +333,38 @@ export async function setFirstLoginDone(id: string) {
   return { success: true };
 }
 
-// ─── Personel Override'ları ────────────────────────────────────────────────
+// ─── Personel Override'ları (Vercel Blob) ─────────────────────────────────
 
-/** Tüm personel override'larını Firebase'den oku */
-export async function getPersonnelOverrides(): Promise<Record<number, any>> {
+const BLOB_PATHNAME = "personel-overrides.json";
+
+async function readOverridesBlob(): Promise<Record<number, any>> {
   try {
-    const snap = await db.collection("personnelOverrides").get();
-    const result: Record<number, any> = {};
-    snap.docs.forEach((doc: any) => {
-      const data = doc.data();
-      if (data.no != null) {
-        result[Number(data.no)] = data;
-      }
-    });
-    return result;
+    const { list } = await import("@vercel/blob");
+    const { blobs } = await list({ prefix: BLOB_PATHNAME });
+    if (blobs.length === 0) return {};
+    const res = await fetch(blobs[0].url, { cache: "no-store" });
+    if (!res.ok) return {};
+    return await res.json();
   } catch {
     return {};
   }
 }
 
-/** Tek bir ayın personel verisini Firebase'e kaydet */
+async function writeOverridesBlob(data: Record<number, any>) {
+  const { put } = await import("@vercel/blob");
+  await put(BLOB_PATHNAME, JSON.stringify(data), {
+    access: "public",
+    addRandomSuffix: false,
+    allowOverwrite: true,
+  });
+}
+
+/** Tüm personel override'larını Blob'dan oku */
+export async function getPersonnelOverrides(): Promise<Record<number, any>> {
+  return readOverridesBlob();
+}
+
+/** Tek bir ayın personel verisini Blob'a kaydet */
 export async function savePersonnelOverride(no: number, data: {
   toplamPersonel: number;
   girisaSayisi: number;
@@ -361,13 +373,9 @@ export async function savePersonnelOverride(no: number, data: {
   erkek: number;
   kadin: number;
 }) {
-  await db
-    .collection("personnelOverrides")
-    .doc(String(no))
-    .set(
-      { no, ...data, updatedAt: FieldValue.serverTimestamp() },
-      { merge: true }
-    );
+  const current = await readOverridesBlob();
+  current[no] = { no, ...data, updatedAt: new Date().toISOString() };
+  await writeOverridesBlob(current);
 
   revalidatePath("/");
   revalidatePath("/personel");
@@ -377,7 +385,10 @@ export async function savePersonnelOverride(no: number, data: {
 
 /** Tek bir ayın override'ını sil (orijinal veriye dön) */
 export async function deletePersonnelOverride(no: number) {
-  await db.collection("personnelOverrides").doc(String(no)).delete();
+  const current = await readOverridesBlob();
+  delete current[no];
+  await writeOverridesBlob(current);
+
   revalidatePath("/");
   revalidatePath("/personel");
   revalidatePath("/veri-guncelle");
