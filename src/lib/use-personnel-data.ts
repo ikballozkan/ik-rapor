@@ -1,23 +1,12 @@
 /**
- * usePersonnelData — localStorage override'larını PERSONNEL_DATA ile birleştirir.
- * Tüm dashboard sayfaları bu hook'u kullanır; Veri Güncelle'de yapılan değişiklikler
- * anında yansır.
+ * usePersonnelData — Firebase override'larını PERSONNEL_DATA ile birleştirir.
+ * Tüm dashboard sayfaları bu hook'u kullanır.
  */
 "use client";
 
 import { useState, useEffect } from "react";
 import { PERSONNEL_DATA, PersonnelRecord, percentChange } from "./personnel-data";
-
-const STORAGE_KEY = "trizone_personel_overrides";
-
-function loadOverrides(): Record<number, Partial<PersonnelRecord>> {
-  if (typeof window === "undefined") return {};
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
-  } catch {
-    return {};
-  }
-}
+import { getPersonnelOverrides } from "@/app/actions";
 
 function buildMerged(overrides: Record<number, Partial<PersonnelRecord>>): PersonnelRecord[] {
   return PERSONNEL_DATA.map((r) => ({ ...r, ...(overrides[r.no] ?? {}) }));
@@ -27,19 +16,24 @@ export function usePersonnelData() {
   const [overrides, setOverrides] = useState<Record<number, Partial<PersonnelRecord>>>({});
   const [ready, setReady] = useState(false);
 
-  useEffect(() => {
-    setOverrides(loadOverrides());
-    setReady(true);
+  async function fetchOverrides() {
+    try {
+      const data = await getPersonnelOverrides();
+      setOverrides(data);
+    } catch {
+      // Firebase yoksa boş bırak, statik veri kullanılır
+    } finally {
+      setReady(true);
+    }
+  }
 
-    // Veri Güncelle sayfasından gelen event'i dinle
-    const handler = () => setOverrides(loadOverrides());
+  useEffect(() => {
+    fetchOverrides();
+
+    // Veri Güncelle sayfasından kaydet event'i gelince yenile
+    const handler = () => fetchOverrides();
     window.addEventListener("personel-data-updated", handler);
-    // storage event: farklı sekmede yapılan değişiklikleri de yakala
-    window.addEventListener("storage", handler);
-    return () => {
-      window.removeEventListener("personel-data-updated", handler);
-      window.removeEventListener("storage", handler);
-    };
+    return () => window.removeEventListener("personel-data-updated", handler);
   }, []);
 
   const allData = buildMerged(overrides);
@@ -69,5 +63,5 @@ export function usePersonnelData() {
     { name: "Kadın", value: latest.kadin },
   ];
 
-  return { allData, latest, prev, changes, personnelTrend, genderData, ready };
+  return { allData, latest, prev, changes, personnelTrend, genderData, ready, refetch: fetchOverrides };
 }

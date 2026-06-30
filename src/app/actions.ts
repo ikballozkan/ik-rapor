@@ -332,3 +332,54 @@ export async function setFirstLoginDone(id: string) {
   revalidatePath("/users");
   return { success: true };
 }
+
+// ─── Personel Override'ları ────────────────────────────────────────────────
+
+/** Tüm personel override'larını Firebase'den oku */
+export async function getPersonnelOverrides(): Promise<Record<number, any>> {
+  try {
+    const snap = await db.collection("personnelOverrides").get();
+    const result: Record<number, any> = {};
+    snap.docs.forEach((doc: any) => {
+      const data = doc.data();
+      if (data.no != null) {
+        result[Number(data.no)] = data;
+      }
+    });
+    return result;
+  } catch {
+    return {};
+  }
+}
+
+/** Tek bir ayın personel verisini Firebase'e kaydet */
+export async function savePersonnelOverride(no: number, data: {
+  toplamPersonel: number;
+  girisaSayisi: number;
+  ayniAyCikisSayisi: number;
+  toplamCikisSayisi: number;
+  erkek: number;
+  kadin: number;
+}) {
+  await db
+    .collection("personnelOverrides")
+    .doc(String(no))
+    .set(
+      { no, ...data, updatedAt: FieldValue.serverTimestamp() },
+      { merge: true }
+    );
+
+  revalidatePath("/");
+  revalidatePath("/personel");
+  revalidatePath("/veri-guncelle");
+  return { success: true };
+}
+
+/** Tek bir ayın override'ını sil (orijinal veriye dön) */
+export async function deletePersonnelOverride(no: number) {
+  await db.collection("personnelOverrides").doc(String(no)).delete();
+  revalidatePath("/");
+  revalidatePath("/personel");
+  revalidatePath("/veri-guncelle");
+  return { success: true };
+}

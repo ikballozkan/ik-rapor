@@ -3,6 +3,11 @@
 import { useState, useEffect } from "react";
 import { PERSONNEL_DATA, PersonnelRecord } from "@/lib/personnel-data";
 import {
+  getPersonnelOverrides,
+  savePersonnelOverride,
+  deletePersonnelOverride,
+} from "@/app/actions";
+import {
   Save,
   RotateCcw,
   CheckCircle2,
@@ -15,36 +20,15 @@ import {
   UserPlus,
   UserMinus,
   Hash,
+  Loader2,
 } from "lucide-react";
 
-// Düzenlenebilecek roller
 const CAN_EDIT_ROLES = ["IK_SEFI", "IK_UZMANI", "ADMIN"];
 
-const STORAGE_KEY = "trizone_personel_overrides";
-
-/** localStorage'daki override'ı oku */
-function loadOverrides(): Record<number, Partial<PersonnelRecord>> {
-  if (typeof window === "undefined") return {};
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
-  } catch {
-    return {};
-  }
-}
-
-/** Kaydet */
-function saveOverrides(data: Record<number, Partial<PersonnelRecord>>) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-}
-
-/** Statik veri + override birleştir */
-function mergedData(
-  overrides: Record<number, Partial<PersonnelRecord>>
-): PersonnelRecord[] {
+function mergedData(overrides: Record<number, Partial<PersonnelRecord>>): PersonnelRecord[] {
   return PERSONNEL_DATA.map((r) => ({ ...r, ...(overrides[r.no] ?? {}) }));
 }
 
-// ─── Küçük yardımcı ──────────────────────────────────────────────────────────
 function FieldInput({
   label,
   icon: Icon,
@@ -79,28 +63,35 @@ function FieldInput({
               : "bg-white border-slate-200 text-slate-800 hover:border-[#1F497D]/40 focus:border-[#1F497D] focus:ring-2 focus:ring-[#1F497D]/10"
           }`}
       />
-      {helpText && (
-        <p className="text-[10px] text-slate-400">{helpText}</p>
-      )}
+      {helpText && <p className="text-[10px] text-slate-400">{helpText}</p>}
     </div>
   );
 }
 
-// ─── Ana Bileşen ─────────────────────────────────────────────────────────────
 export default function VeriGuncellePage() {
   const [activeUser, setActiveUser] = useState<any>(null);
   const [overrides, setOverrides] = useState<Record<number, Partial<PersonnelRecord>>>({});
-  const [selected, setSelected] = useState<number>(6); // Haziran = no:6
+  const [selected, setSelected] = useState<number>(6); // Haziran
   const [form, setForm] = useState<Partial<PersonnelRecord>>({});
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Kullanıcı ve override yükle
+  async function fetchOverrides() {
+    setLoading(true);
+    try {
+      const data = await getPersonnelOverrides();
+      setOverrides(data);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   useEffect(() => {
     const u = localStorage.getItem("trizone_active_user");
     if (u) setActiveUser(JSON.parse(u));
-    const loaded = loadOverrides();
-    setOverrides(loaded);
+    fetchOverrides();
   }, []);
 
   // Seçili ayın form değerlerini yükle
@@ -126,65 +117,75 @@ export default function VeriGuncellePage() {
   const months = mergedData(overrides);
   const selectedRow = months.find((r) => r.no === selected)!;
 
-  function updateField(key: keyof PersonnelRecord, val: number) {
-    setForm((prev) => {
-      const next = { ...prev, [key]: val };
-      // Toplam otomatik hesapla
-      if (key === "erkek" || key === "kadin") {
-        next.toplamPersonel = (next.erkek ?? 0) + (next.kadin ?? 0);
-      }
-      return next;
-    });
-    setDirty(true);
-    setSaved(false);
+  async function handleSave() {
+    setSaving(true);
+    try {
+      await savePersonnelOverride(selected, {
+        toplamPersonel: form.toplamPersonel ?? 0,
+        girisaSayisi: form.girisaSayisi ?? 0,
+        ayniAyCikisSayisi: form.ayniAyCikisSayisi ?? 0,
+        toplamCikisSayisi: form.toplamCikisSayisi ?? 0,
+        erkek: form.erkek ?? 0,
+        kadin: form.kadin ?? 0,
+      });
+      // Overrides'ı yenile
+      await fetchOverrides();
+      setSaved(true);
+      setDirty(false);
+      // Diğer sayfaları tetikle
+      window.dispatchEvent(new Event("personel-data-updated"));
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function handleSave() {
-    const next = { ...overrides, [selected]: { ...overrides[selected], ...form } };
-    setOverrides(next);
-    saveOverrides(next);
-    setSaved(true);
-    setDirty(false);
-    // Diğer bileşenlerin de güncellenmesi için event fırlat
-    window.dispatchEvent(new Event("personel-data-updated"));
+  async function handleReset() {
+    setSaving(true);
+    try {
+      await deletePersonnelOverride(selected);
+      await fetchOverrides();
+      setSaved(false);
+      setDirty(false);
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function handleReset() {
-    const next = { ...overrides };
-    delete next[selected];
-    setOverrides(next);
-    saveOverrides(next);
-    setSaved(false);
-    setDirty(false);
+  if (loading) {
+    return (
+      <div className="flex h-[60vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-[#1F497D]" />
+      </div>
+    );
   }
 
   return (
     <div className="flex flex-col space-y-6 max-w-4xl">
-      {/* ── Başlık ── */}
+      {/* Başlık */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">
           Veri Güncelleme
         </h1>
         <p className="text-sm text-slate-500 mt-1">
-          Aylık personel verilerini aşağıdaki form üzerinden güncelleyin. Değişiklikler anında uygulamaya yansır.
+          Aylık personel verilerini güncelleyin. Değişiklikler tüm kullanıcılara anında yansır.
         </p>
       </div>
 
-      {/* ── Yetki Uyarısı ── */}
+      {/* Yetki Uyarısı */}
       {!canEdit && (
         <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl px-5 py-4 text-sm">
           <Lock className="h-5 w-5 shrink-0 mt-0.5" />
           <div>
             <p className="font-semibold">Düzenleme Yetkiniz Yok</p>
             <p className="text-xs mt-0.5 text-amber-700">
-              Veri girişi yalnızca İK Şefi, İK Uzmanı ve Sistem Yöneticisi rollerine açıktır. Mevcut rolünüz:{" "}
-              <strong>{activeUser?.role ?? "Bilinmiyor"}</strong>
+              Veri girişi yalnızca İK Şefi, İK Uzmanı ve Sistem Yöneticisi rollerine açıktır.
+              Mevcut rolünüz: <strong>{activeUser?.role ?? "Bilinmiyor"}</strong>
             </p>
           </div>
         </div>
       )}
 
-      {/* ── Ay Seçici ── */}
+      {/* Ay Seçici */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
         <h2 className="text-sm font-bold text-slate-700 mb-4 flex items-center gap-2">
           <CalendarDays className="h-4 w-4 text-[#1F497D]" />
@@ -200,7 +201,7 @@ export default function VeriGuncellePage() {
                 className={`relative px-4 py-2 rounded-xl text-xs font-bold transition-all border
                   ${
                     selected === r.no
-                      ? "bg-[#1F497D] text-white border-[#1F497D] shadow-md shadow-[#1F497D]/20"
+                      ? "bg-[#1F497D] text-white border-[#1F497D] shadow-md"
                       : "bg-slate-50 text-slate-600 border-slate-200 hover:border-[#1F497D]/40 hover:bg-slate-100"
                   }`}
               >
@@ -218,7 +219,7 @@ export default function VeriGuncellePage() {
         <div className="flex items-center gap-4 mt-4 text-[10px] text-slate-500">
           <span className="flex items-center gap-1.5">
             <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-            Güncellenmiş ay
+            Firebase'e kaydedilmiş
           </span>
           <span className="flex items-center gap-1.5">
             <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
@@ -227,7 +228,7 @@ export default function VeriGuncellePage() {
         </div>
       </div>
 
-      {/* ── Form ── */}
+      {/* Form */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-sm font-bold text-slate-700 flex items-center gap-2">
@@ -242,7 +243,7 @@ export default function VeriGuncellePage() {
           {overrides[selected] && (
             <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full font-bold flex items-center gap-1">
               <CheckCircle2 className="h-3 w-3" />
-              Güncel Veri
+              Firebase'de Kayıtlı
             </span>
           )}
         </div>
@@ -252,29 +253,29 @@ export default function VeriGuncellePage() {
             label="Toplam Aktif Personel"
             icon={Users}
             value={form.toplamPersonel ?? 0}
-            onChange={(v) => updateField("toplamPersonel", v)}
+            onChange={(v) => { setForm((p) => ({ ...p, toplamPersonel: v })); setDirty(true); setSaved(false); }}
             disabled={!canEdit}
-            helpText="Erkek + Kadın toplamı otomatik hesaplanır"
+            helpText="Erkek + Kadın toplamı"
           />
           <FieldInput
             label="İşe Giriş Sayısı"
             icon={UserPlus}
             value={form.girisaSayisi ?? 0}
-            onChange={(v) => updateField("girisaSayisi", v)}
+            onChange={(v) => { setForm((p) => ({ ...p, girisaSayisi: v })); setDirty(true); setSaved(false); }}
             disabled={!canEdit}
           />
           <FieldInput
             label="Aynı Ay Çıkış"
             icon={UserMinus}
             value={form.ayniAyCikisSayisi ?? 0}
-            onChange={(v) => updateField("ayniAyCikisSayisi", v)}
+            onChange={(v) => { setForm((p) => ({ ...p, ayniAyCikisSayisi: v })); setDirty(true); setSaved(false); }}
             disabled={!canEdit}
           />
           <FieldInput
             label="Toplam Çıkış (YTD)"
             icon={Hash}
             value={form.toplamCikisSayisi ?? 0}
-            onChange={(v) => updateField("toplamCikisSayisi", v)}
+            onChange={(v) => { setForm((p) => ({ ...p, toplamCikisSayisi: v })); setDirty(true); setSaved(false); }}
             disabled={!canEdit}
             helpText="Yılın başından beri toplam"
           />
@@ -283,14 +284,8 @@ export default function VeriGuncellePage() {
             icon={Users}
             value={form.erkek ?? 0}
             onChange={(v) => {
-              const kadin = form.kadin ?? 0;
-              setForm((p) => ({
-                ...p,
-                erkek: v,
-                toplamPersonel: v + kadin,
-              }));
-              setDirty(true);
-              setSaved(false);
+              setForm((p) => ({ ...p, erkek: v, toplamPersonel: v + (p.kadin ?? 0) }));
+              setDirty(true); setSaved(false);
             }}
             disabled={!canEdit}
           />
@@ -299,20 +294,14 @@ export default function VeriGuncellePage() {
             icon={Users}
             value={form.kadin ?? 0}
             onChange={(v) => {
-              const erkek = form.erkek ?? 0;
-              setForm((p) => ({
-                ...p,
-                kadin: v,
-                toplamPersonel: erkek + v,
-              }));
-              setDirty(true);
-              setSaved(false);
+              setForm((p) => ({ ...p, kadin: v, toplamPersonel: (p.erkek ?? 0) + v }));
+              setDirty(true); setSaved(false);
             }}
             disabled={!canEdit}
           />
         </div>
 
-        {/* Özet */}
+        {/* Önizleme */}
         {canEdit && (
           <div className="mt-6 p-4 bg-slate-50 rounded-xl border border-slate-200">
             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3 flex items-center gap-1.5">
@@ -342,23 +331,23 @@ export default function VeriGuncellePage() {
           <div className="flex items-center gap-3 mt-6">
             <button
               onClick={handleSave}
-              disabled={!dirty}
+              disabled={!dirty || saving}
               className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all
                 ${
-                  dirty
+                  dirty && !saving
                     ? "bg-[#1F497D] text-white hover:bg-[#183d6f] shadow-lg shadow-[#1F497D]/20 active:scale-[0.98]"
                     : "bg-slate-100 text-slate-400 cursor-not-allowed"
                 }`}
             >
-              <Save className="h-4 w-4" />
-              Kaydet
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              {saving ? "Kaydediliyor..." : "Kaydet"}
             </button>
             <button
               onClick={handleReset}
-              disabled={!overrides[selected]}
+              disabled={!overrides[selected] || saving}
               className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold border transition-all
                 ${
-                  overrides[selected]
+                  overrides[selected] && !saving
                     ? "border-red-200 text-red-600 hover:bg-red-50 active:scale-[0.98]"
                     : "border-slate-200 text-slate-400 cursor-not-allowed"
                 }`}
@@ -366,18 +355,17 @@ export default function VeriGuncellePage() {
               <RotateCcw className="h-4 w-4" />
               Orijinale Döndür
             </button>
-
             {saved && (
-              <span className="flex items-center gap-1.5 text-emerald-600 text-sm font-semibold animate-in fade-in-0 duration-200">
+              <span className="flex items-center gap-1.5 text-emerald-600 text-sm font-semibold">
                 <CheckCircle2 className="h-4 w-4" />
-                Kaydedildi
+                Firebase'e kaydedildi
               </span>
             )}
           </div>
         )}
       </div>
 
-      {/* ── Tüm Aylar Özet Tablosu ── */}
+      {/* Tüm Aylar Özet Tablosu */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
         <h2 className="text-sm font-bold text-slate-700 mb-4">Tüm Aylar Özet</h2>
         <div className="overflow-x-auto">
@@ -400,13 +388,13 @@ export default function VeriGuncellePage() {
                     key={r.no}
                     onClick={() => setSelected(r.no)}
                     className={`border-b border-slate-100 cursor-pointer transition-colors
-                      ${isSelected ? "bg-[#1F497D]/5 border-[#1F497D]/20" : "hover:bg-slate-50"}`}
+                      ${isSelected ? "bg-[#1F497D]/5" : "hover:bg-slate-50"}`}
                   >
-                    <td className="py-2.5 px-3 font-semibold text-slate-800 flex items-center gap-1.5">
-                      {r.ay}
-                      {r.isCurrentMonth && (
-                        <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
-                      )}
+                    <td className="py-2.5 px-3 font-semibold text-slate-800">
+                      <span className="flex items-center gap-1.5">
+                        {r.ay}
+                        {r.isCurrentMonth && <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />}
+                      </span>
                     </td>
                     <td className="py-2.5 px-3 font-bold text-slate-700">{r.toplamPersonel}</td>
                     <td className="py-2.5 px-3 text-emerald-600 font-semibold">{r.girisaSayisi}</td>
@@ -417,7 +405,7 @@ export default function VeriGuncellePage() {
                       {hasOverride ? (
                         <span className="inline-flex items-center gap-1 text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full font-bold">
                           <CheckCircle2 className="h-2.5 w-2.5" />
-                          Güncel
+                          Firebase
                         </span>
                       ) : (
                         <span className="text-[10px] text-slate-400 font-medium">Orijinal</span>
@@ -431,7 +419,7 @@ export default function VeriGuncellePage() {
         </div>
         <p className="text-[10px] text-slate-400 mt-3 flex items-center gap-1">
           <AlertTriangle className="h-3 w-3" />
-          Güncellenen veriler tarayıcı hafızasına (localStorage) kaydedilir. Bu cihazda kalıcıdır.
+          Güncellenen veriler Firebase'e kaydedilir — tüm kullanıcılar ve cihazlarda geçerlidir.
         </p>
       </div>
     </div>
