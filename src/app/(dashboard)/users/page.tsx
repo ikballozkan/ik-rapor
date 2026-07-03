@@ -15,6 +15,19 @@ import {
 } from "lucide-react";
 import { getUsers, addUser, updateUser } from "@/app/actions";
 
+// ─── Sabit kullanıcılar (DB'den bağımsız her zaman mevcut) ──────────────────
+const STATIC_USERS = [
+  {
+    id: "static-orhan-arabaci",
+    name: "Orhan Arabacı",
+    email: "orhan.arabaci@trizone.com",
+    password: "orhan123",
+    role: "KOORDINATOR",
+    firstLogin: true,
+    createdAt: new Date("2026-01-01"),
+  },
+];
+
 // ─── Rol konfigürasyonu ───────────────────────────────────────────────────────
 const ROLE_CONFIG: Record<string, { label: string; color: string; bg: string; canEdit: boolean }> = {
   KOORDINATOR: { label: "Koordinatör",        color: "text-purple-700", bg: "bg-purple-50 border border-purple-200",  canEdit: false },
@@ -227,24 +240,24 @@ export default function UsersPage() {
     setLoading(true);
     const data = await getUsers();
     
-    // Sync with LocalStorage to keep simulation alive
+    // DB + sabit kullanıcıları birleştir
     const local = localStorage.getItem("trizone_users");
+    const localMap: Record<string, any> = {};
     if (local) {
-      const parsed = JSON.parse(local).filter((u: any) => u.email !== "orhan.arabaci@trizone.com");
-      setUsers(parsed);
-      localStorage.setItem("trizone_users", JSON.stringify(parsed));
-    } else {
-      // Set default firstLogin status for existing mock users
-      const initialUsers = data
-        .filter((u: any) => u.email !== "orhan.arabaci@trizone.com")
-        .map((u: any) => ({
-          ...u,
-          firstLogin: u.firstLogin !== false, // Default to true if undefined
-          password: u.password || "password123"
-        }));
-      setUsers(initialUsers);
-      localStorage.setItem("trizone_users", JSON.stringify(initialUsers));
+      JSON.parse(local).forEach((u: any) => { localMap[u.id] = u; });
     }
+    const dbEmails = data.map((u: any) => u.email.toLowerCase());
+    const missingStatic = STATIC_USERS.filter(
+      (su) => !dbEmails.includes(su.email.toLowerCase())
+    );
+    const allUsers = [...data, ...missingStatic];
+    const mergedUsers = allUsers.map((u: any) => ({
+      ...u,
+      firstLogin: localMap[u.id]?.firstLogin ?? (u.firstLogin !== false),
+      password: u.password || localMap[u.id]?.password || "password123"
+    }));
+    setUsers(mergedUsers);
+    localStorage.setItem("trizone_users", JSON.stringify(mergedUsers));
     setLoading(false);
   }
 

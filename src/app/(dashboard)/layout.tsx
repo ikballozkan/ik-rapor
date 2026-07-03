@@ -11,6 +11,19 @@ import {
   ShieldCheck, ShieldOff, Key, Crown, Sparkles, LogIn, Loader2, CheckCircle2, UserCircle2, ArrowRight, ShieldAlert
 } from "lucide-react";
 
+// ─── Sabit kullanıcılar (DB'den bağımsız her zaman mevcut) ──────────────────
+const STATIC_USERS = [
+  {
+    id: "static-orhan-arabaci",
+    name: "Orhan Arabacı",
+    email: "orhan.arabaci@trizone.com",
+    password: "orhan123",
+    role: "KOORDINATOR",
+    firstLogin: true,
+    createdAt: new Date("2026-01-01"),
+  },
+];
+
 // ─── Rol konfigürasyonu ───────────────────────────────────────────────────────
 const ROLE_CONFIG: Record<string, { label: string; color: string; bg: string; border: string; canEdit: boolean }> = {
   KOORDINATOR: { label: "Koordinatör",        color: "text-purple-700", bg: "bg-purple-50", border: "border-purple-200",   canEdit: false },
@@ -42,32 +55,29 @@ export default function DashboardLayout({
       const storedSession = localStorage.getItem("trizone_active_user");
       if (storedSession) {
         const parsed = JSON.parse(storedSession);
-        if (parsed.email === "orhan.arabaci@trizone.com") {
-          localStorage.removeItem("trizone_active_user");
-          setActiveUser(null);
-        } else {
-          setActiveUser(parsed);
-        }
+        setActiveUser(parsed);
       }
 
       try {
         const dbUsers = await getUsers();
         const local = localStorage.getItem("trizone_users");
+        const localMap: Record<string, any> = {};
         if (local) {
-          const parsed = JSON.parse(local).filter((u: any) => u.email !== "orhan.arabaci@trizone.com");
-          setUsers(parsed);
-          localStorage.setItem("trizone_users", JSON.stringify(parsed));
-        } else {
-          const initialUsers = dbUsers
-            .filter((u: any) => u.email !== "orhan.arabaci@trizone.com")
-            .map((u: any) => ({
-              ...u,
-              firstLogin: u.firstLogin !== false,
-              password: u.password || "password123"
-            }));
-          setUsers(initialUsers);
-          localStorage.setItem("trizone_users", JSON.stringify(initialUsers));
+          JSON.parse(local).forEach((u: any) => { localMap[u.id] = u; });
         }
+        // DB + sabit kullanıcıları birleştir (sabit kullanıcılar DB'de yoksa ekle)
+        const dbEmails = dbUsers.map((u: any) => u.email.toLowerCase());
+        const missingStatic = STATIC_USERS.filter(
+          (su) => !dbEmails.includes(su.email.toLowerCase())
+        );
+        const allUsers = [...dbUsers, ...missingStatic];
+        const mergedUsers = allUsers.map((u: any) => ({
+          ...u,
+          firstLogin: localMap[u.id]?.firstLogin ?? (u.firstLogin !== false),
+          password: u.password || localMap[u.id]?.password || "password123"
+        }));
+        setUsers(mergedUsers);
+        localStorage.setItem("trizone_users", JSON.stringify(mergedUsers));
       } catch (err) {
         console.error("Kullanıcılar yüklenemedi", err);
       }
