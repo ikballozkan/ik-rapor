@@ -115,16 +115,34 @@ export default function DashboardLayout({
       return;
     }
 
+    // Oturum takibi: giriş zamanını kaydet
+    const now = new Date().toISOString();
+    foundUser.lastLoginAt = now;
+    foundUser.sessionStart = now;
+
+    // Diğer kullanıcıların aktif oturumlarını kapat (sessionStart şimdi aktif değil)
+    const updatedUsers = currentUsers.map((u: any) => {
+      if (u.id === foundUser.id) return foundUser;
+      // Bir önceki oturumun süresini hesapla ve kaydet
+      if (u.sessionStart) {
+        const mins = Math.round((new Date(now).getTime() - new Date(u.sessionStart).getTime()) / 60000);
+        return { ...u, sessionStart: null, lastSessionMinutes: mins > 0 ? mins : u.lastSessionMinutes };
+      }
+      return u;
+    });
+
     localStorage.setItem("trizone_active_user", JSON.stringify(foundUser));
+    localStorage.setItem("trizone_users", JSON.stringify(updatedUsers));
     setActiveUser(foundUser);
+    setUsers(updatedUsers);
     window.dispatchEvent(new Event("auth-changed"));
 
     if (foundUser.firstLogin !== false) {
       setShowWelcome(true);
       foundUser.firstLogin = false;
-      const updatedUsers = currentUsers.map((u: any) => u.id === foundUser.id ? foundUser : u);
-      localStorage.setItem("trizone_users", JSON.stringify(updatedUsers));
-      setUsers(updatedUsers);
+      const finalUsers = updatedUsers.map((u: any) => u.id === foundUser.id ? foundUser : u);
+      localStorage.setItem("trizone_users", JSON.stringify(finalUsers));
+      setUsers(finalUsers);
       
       try {
         await setFirstLoginDone(foundUser.id);
@@ -144,16 +162,31 @@ export default function DashboardLayout({
       const currentUsers = JSON.parse(localStorage.getItem("trizone_users") || JSON.stringify(users));
       const found = currentUsers.find((u: any) => u.id === user.id);
       if (found) {
+        const now = new Date().toISOString();
+        found.lastLoginAt = now;
+        found.sessionStart = now;
+
+        const updatedUsers = currentUsers.map((u: any) => {
+          if (u.id === found.id) return found;
+          if (u.sessionStart) {
+            const mins = Math.round((new Date(now).getTime() - new Date(u.sessionStart).getTime()) / 60000);
+            return { ...u, sessionStart: null, lastSessionMinutes: mins > 0 ? mins : u.lastSessionMinutes };
+          }
+          return u;
+        });
+
         localStorage.setItem("trizone_active_user", JSON.stringify(found));
+        localStorage.setItem("trizone_users", JSON.stringify(updatedUsers));
         setActiveUser(found);
+        setUsers(updatedUsers);
         window.dispatchEvent(new Event("auth-changed"));
 
         if (found.firstLogin !== false) {
           setShowWelcome(true);
           found.firstLogin = false;
-          const updatedUsers = currentUsers.map((u: any) => u.id === found.id ? found : u);
-          localStorage.setItem("trizone_users", JSON.stringify(updatedUsers));
-          setUsers(updatedUsers);
+          const finalUsers = updatedUsers.map((u: any) => u.id === found.id ? found : u);
+          localStorage.setItem("trizone_users", JSON.stringify(finalUsers));
+          setUsers(finalUsers);
           setFirstLoginDone(found.id).catch(() => {});
         }
       }

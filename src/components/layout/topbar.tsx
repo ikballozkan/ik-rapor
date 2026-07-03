@@ -33,6 +33,23 @@ export function Topbar() {
   }, []);
 
   function handleLogout() {
+    // Session s\u00fcresini hesapla ve kaydet
+    const activeStr = localStorage.getItem("trizone_active_user");
+    if (activeStr) {
+      const active = JSON.parse(activeStr);
+      if (active.sessionStart) {
+        const mins = Math.round(
+          (Date.now() - new Date(active.sessionStart).getTime()) / 60000
+        );
+        const allUsers = JSON.parse(localStorage.getItem("trizone_users") || "[]");
+        const updated = allUsers.map((u: any) =>
+          u.id === active.id
+            ? { ...u, sessionStart: null, lastSessionMinutes: mins > 0 ? mins : 1, lastLoginAt: active.lastLoginAt }
+            : u
+        );
+        localStorage.setItem("trizone_users", JSON.stringify(updated));
+      }
+    }
     localStorage.removeItem("trizone_active_user");
     setActiveUser(null);
     window.dispatchEvent(new Event("auth-changed"));

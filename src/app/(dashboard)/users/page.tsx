@@ -11,7 +11,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  UserPlus, Loader2, ShieldCheck, ShieldOff, Pencil, X, Save, Crown, Key, Eye, EyeOff, CheckCircle
+  UserPlus, Loader2, ShieldCheck, ShieldOff, Pencil, X, Save, Crown, Key, Eye, EyeOff, CheckCircle, Clock, Activity
 } from "lucide-react";
 import { getUsers, addUser, updateUser } from "@/app/actions";
 
@@ -219,6 +219,7 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [editingUser, setEditingUser] = useState<any>(null);
   const [activeUser, setActiveUser] = useState<any>(null);
+  const [now, setNow] = useState(new Date());
 
   // Yeni kullanıcı formu
   const [name, setName] = useState("");
@@ -234,6 +235,9 @@ export default function UsersPage() {
       setActiveUser(JSON.parse(session));
     }
     loadUsers();
+    // Canlı sayaç için her dakika güncelle
+    const timer = setInterval(() => setNow(new Date()), 30000);
+    return () => clearInterval(timer);
   }, []);
 
   async function loadUsers() {
@@ -434,25 +438,63 @@ export default function UsersPage() {
                       <TableHead>Şifre</TableHead>
                       <TableHead>Unvan / Rol</TableHead>
                       <TableHead className="text-center">İlk Karşılama</TableHead>
+                      <TableHead className="text-center">
+                        <span className="flex items-center justify-center gap-1">
+                          <Clock className="h-3.5 w-3.5" /> Son Giriş
+                        </span>
+                      </TableHead>
+                      <TableHead className="text-center">
+                        <span className="flex items-center justify-center gap-1">
+                          <Activity className="h-3.5 w-3.5" /> Süre
+                        </span>
+                      </TableHead>
                       <TableHead className="text-center">İşlem</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {users.map(u => {
                       const cfg = getRoleCfg(u.role);
-                      const canEdit = u.canEdit !== undefined ? u.canEdit : cfg.canEdit;
                       const isAdmin = u.role === "ADMIN";
                       const isFirstLoginPending = u.firstLogin !== false;
+                      
+                      // Son giriş ve süre hesapla
+                      const activeSession = localStorage.getItem("trizone_active_user");
+                      const activeId = activeSession ? JSON.parse(activeSession).id : null;
+                      const isOnline = u.id === activeId && u.sessionStart;
+
+                      let lastLoginLabel = "-";
+                      if (u.lastLoginAt) {
+                        const d = new Date(u.lastLoginAt);
+                        const diffMin = Math.round((now.getTime() - d.getTime()) / 60000);
+                        if (diffMin < 1) lastLoginLabel = "Az önce";
+                        else if (diffMin < 60) lastLoginLabel = `${diffMin} dk önce`;
+                        else if (diffMin < 1440) lastLoginLabel = `${Math.round(diffMin/60)} sa önce`;
+                        else lastLoginLabel = d.toLocaleDateString("tr-TR", { day:"2-digit", month:"short", year:"2-digit" });
+                      }
+
+                      let durationLabel = "-";
+                      if (isOnline) {
+                        const mins = Math.round((now.getTime() - new Date(u.sessionStart).getTime()) / 60000);
+                        durationLabel = mins < 1 ? "< 1 dk" : `${mins} dk`;
+                      } else if (u.lastSessionMinutes != null) {
+                        durationLabel = u.lastSessionMinutes < 60
+                          ? `${u.lastSessionMinutes} dk`
+                          : `${Math.round(u.lastSessionMinutes / 60)} sa ${u.lastSessionMinutes % 60} dk`;
+                      }
                       
                       return (
                         <TableRow key={u.id} className="hover:bg-slate-50 group">
                           <TableCell>
                             <div className="flex items-center gap-2.5">
-                              {/* Avatar */}
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 ${
-                                isAdmin ? "bg-gradient-to-br from-red-500 to-red-700 shadow-sm" : "bg-[#1F497D]"
-                              }`}>
-                                {u.name.charAt(0)}
+                              <div className="relative">
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 ${
+                                  isAdmin ? "bg-gradient-to-br from-red-500 to-red-700 shadow-sm" : "bg-[#1F497D]"
+                                }`}>
+                                  {u.name.charAt(0)}
+                                </div>
+                                {isOnline && (
+                                  <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white" title="Şu an çevrimiçi" />
+                                )}
                               </div>
                               <div>
                                 <div className="font-semibold text-slate-800 text-sm flex items-center gap-1">
@@ -484,6 +526,37 @@ export default function UsersPage() {
                               </span>
                             )}
                           </TableCell>
+                          {/* Son Giriş */}
+                          <TableCell className="text-center">
+                            {u.lastLoginAt ? (
+                              <div className="flex flex-col items-center gap-0.5">
+                                {isOnline && (
+                                  <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-200 mb-0.5">
+                                    ● Çevrimiçi
+                                  </span>
+                                )}
+                                <span className="text-xs font-medium text-slate-700">{lastLoginLabel}</span>
+                                <span className="text-[10px] text-slate-400">
+                                  {new Date(u.lastLoginAt).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-slate-300 text-xs">-</span>
+                            )}
+                          </TableCell>
+                          {/* Oturum Süresi */}
+                          <TableCell className="text-center">
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
+                              isOnline
+                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                : durationLabel === "-"
+                                  ? "text-slate-300"
+                                  : "bg-slate-50 text-slate-600 border border-slate-200"
+                            }`}>
+                              {isOnline && <Activity className="h-3 w-3" />}
+                              {durationLabel}
+                            </span>
+                          </TableCell>
                           <TableCell className="text-center">
                             <button
                               onClick={() => setEditingUser(u)}
@@ -498,7 +571,7 @@ export default function UsersPage() {
                     })}
                     {users.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center text-slate-500 py-8">
+                        <TableCell colSpan={8} className="text-center text-slate-500 py-8">
                           Kayıtlı kullanıcı bulunamadı.
                         </TableCell>
                       </TableRow>
