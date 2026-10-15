@@ -368,6 +368,7 @@ async function writeOverridesBlob(data: Record<number, any>) {
   const result = await put(BLOB_PATHNAME, JSON.stringify(data), {
     access: "public",
     addRandomSuffix: false,
+    allowOverwrite: true,
   });
   _cachedBlobUrl = result.url;
 }
@@ -385,6 +386,21 @@ export async function savePersonnelOverride(no: number, data: {
   toplamCikisSayisi: number;
   erkek: number;
   kadin: number;
+  // Detaylı giriş/çıkış kırılımı (opsiyonel)
+  girisErkek?: number;
+  girisKadin?: number;
+  toplamAyCikis?: number;
+  cikisErkek?: number;
+  cikisKadin?: number;
+  // Özel gruplar
+  ozurluBaslangic?: number;
+  ozurluGiris?: number;
+  ozurluCikis?: number;
+  ozurluSonu?: number;
+  eskiHukumluBaslangic?: number;
+  eskiHukumluGiris?: number;
+  eskiHukumluCikis?: number;
+  eskiHukumluSonu?: number;
 }) {
   const current = await readOverridesBlob();
   current[no] = { no, ...data, updatedAt: new Date().toISOString() };
@@ -393,6 +409,7 @@ export async function savePersonnelOverride(no: number, data: {
   revalidatePath("/");
   revalidatePath("/personel");
   revalidatePath("/veri-guncelle");
+  revalidatePath("/personel-hareket");
   return { success: true };
 }
 
@@ -407,3 +424,79 @@ export async function deletePersonnelOverride(no: number) {
   revalidatePath("/veri-guncelle");
   return { success: true };
 }
+
+// ─── Devam & Devamsızlık Takibi (Aylık) ───────────────────────────────────────
+
+const BLOB_ATTENDANCE_PATHNAME = "attendance-records.json";
+let _cachedAttendanceUrl: string | null = null;
+
+async function readAttendanceBlob(): Promise<Record<number, any>> {
+  try {
+    const { list } = await import("@vercel/blob");
+    let url = _cachedAttendanceUrl;
+    if (!url) {
+      const { blobs } = await list({ prefix: BLOB_ATTENDANCE_PATHNAME });
+      if (blobs.length === 0) return {};
+      url = blobs[0].url;
+      _cachedAttendanceUrl = url;
+    }
+    const res = await fetch(`${url}?t=${Date.now()}`, { cache: "no-store" });
+    if (!res.ok) {
+      _cachedAttendanceUrl = null;
+      return {};
+    }
+    return await res.json();
+  } catch {
+    _cachedAttendanceUrl = null;
+    return {};
+  }
+}
+
+async function writeAttendanceBlob(data: Record<number, any>) {
+  const { put } = await import("@vercel/blob");
+  const result = await put(BLOB_ATTENDANCE_PATHNAME, JSON.stringify(data), {
+    access: "public",
+    addRandomSuffix: false,
+    allowOverwrite: true,
+  });
+  _cachedAttendanceUrl = result.url;
+}
+
+export async function getAttendanceRecords(): Promise<Record<number, any>> {
+  return readAttendanceBlob();
+}
+
+export async function saveAttendanceRecord(month: number, data: any) {
+  const current = await readAttendanceBlob();
+  current[month] = { ...data, updatedAt: new Date().toISOString() };
+  await writeAttendanceBlob(current);
+
+  // Firestore kpiRecords'a da opsiyonel yaz
+  try {
+    const year = data.yil || 2026;
+    await db.collection("kpiRecords").doc(`${year}_${month}`).set(
+      {
+        year,
+        month,
+        attendanceBreakdown: data,
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+  } catch {
+    // mock db veya hata durumunda sessizce geç
+  }
+
+  revalidatePath("/devamsizlik-takip");
+  revalidatePath("/kpi/absenteeism");
+  return { success: true };
+}
+
+export async function deleteAttendanceRecord(month: number) {
+  const current = await readAttendanceBlob();
+  delete current[month];
+  await writeAttendanceBlob(current);
+  revalidatePath("/devamsizlik-takip");
+  return { success: true };
+}
+

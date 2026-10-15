@@ -71,7 +71,7 @@ function FieldInput({
 export default function VeriGuncellePage() {
   const [activeUser, setActiveUser] = useState<any>(null);
   const [overrides, setOverrides] = useState<Record<number, Partial<PersonnelRecord>>>({});
-  const [selected, setSelected] = useState<number>(6); // Haziran
+  const [selected, setSelected] = useState<number>(10); // Ekim (Güncel ay)
   const [form, setForm] = useState<Partial<PersonnelRecord>>({});
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);

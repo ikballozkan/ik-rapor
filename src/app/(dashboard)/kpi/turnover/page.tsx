@@ -23,7 +23,7 @@ export default function TurnoverKpiPage() {
   const [endCount, setEndCount] = useState<number>(0);
   const [leftCount, setLeftCount] = useState<number>(0);
   const [year, setYear] = useState<string>("2026");
-  const [month, setMonth] = useState<string>("6");
+  const [month, setMonth] = useState<string>("10");
   const [trendData, setTrendData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 

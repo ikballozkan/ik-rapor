@@ -147,7 +147,7 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between mb-5">
             <div>
               <h2 className="font-bold text-slate-800">Toplam Personel Trendi</h2>
-              <p className="text-xs text-slate-400">OCAK → HAZİRAN 2026</p>
+              <p className="text-xs text-slate-400">OCAK → TEMMUZ 2026</p>
             </div>
           </div>
           <div className="h-[260px]">

@@ -27,6 +27,7 @@ const AY_LISTESI = [
   { value: 4, label: "Nisan" },
   { value: 5, label: "Mayıs" },
   { value: 6, label: "Haziran" },
+  { value: 7, label: "Temmuz" },
 ];
 
 // Veri okuma yardımcısı
@@ -115,11 +116,11 @@ function AyChip({
 export default function ComparisonsPage() {
   // ── Bölüm 1: Tek KPI, seçili aylar trendi
   const [kpi1,     setKpi1]     = useState("toplamPersonel");
-  const [seciliAylar, setSeciliAylar] = useState<number[]>([1, 2, 3, 4, 5, 6]);
+  const [seciliAylar, setSeciliAylar] = useState<number[]>([1, 2, 3, 4, 5, 6, 7]);
 
   // ── Bölüm 2: İki ay karşılaştırması
-  const [ay1,      setAy1]      = useState<number>(4); // Nisan
-  const [ay2,      setAy2]      = useState<number>(5); // Mayıs
+  const [ay1,      setAy1]      = useState<number>(6); // Haziran
+  const [ay2,      setAy2]      = useState<number>(7); // Temmuz
 
   // ── Bölüm 3: İki KPI karşılaştırması, seçili ay aralığı
   const [metric1,  setMetric1]  = useState("toplamPersonel");

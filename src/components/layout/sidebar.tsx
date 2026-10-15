@@ -12,12 +12,16 @@ import {
   Settings,
   UserCheck,
   ClipboardEdit,
+  ArrowLeftRight,
+  CalendarCheck,
 } from "lucide-react";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
   { name: "Aktif Personel", href: "/personel", icon: UserCheck },
   { name: "KPI Yönetimi", href: "/kpi", icon: BarChart2 },
+  { name: "Personel Hareket", href: "/personel-hareket", icon: ArrowLeftRight },
+  { name: "Devam Takibi", href: "/devamsizlik-takip", icon: CalendarCheck },
   { name: "Raporlar", href: "/reports", icon: FileText },
   { name: "Karşılaştırmalar", href: "/comparisons", icon: GitCompare },
   { name: "Veri Güncelle", href: "/veri-guncelle", icon: ClipboardEdit, editOnly: false },

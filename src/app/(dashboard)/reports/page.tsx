@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import {
-  PERSONNEL_DATA, LATEST_PERSONNEL,
+  PERSONNEL_DATA, LATEST_PERSONNEL, getTurnoverData,
 } from "@/lib/personnel-data";
 import {
   HISTORICAL_SUMMARY_2025,
@@ -248,6 +248,13 @@ export default function ReportsPage() {
   const personelChart2026 = PERSONNEL_DATA.filter(r => r.toplamPersonel > 0).map(r => ({
     name: r.ay.charAt(0) + r.ay.slice(1).toLowerCase().substring(0, 2),
     "Toplam": r.toplamPersonel, "Giriş": r.girisaSayisi, "Çıkış": r.ayniAyCikisSayisi,
+  }));
+
+  // ─── Turnover hesaplama
+  const turnoverData = getTurnoverData(PERSONNEL_DATA);
+  const turnoverChart = turnoverData.map(r => ({
+    name: r.ay.charAt(0) + r.ay.slice(1).toLowerCase().substring(0, 2),
+    "Turnover %": r.turnoverOrani,
   }));
 
   return (
@@ -588,6 +595,139 @@ export default function ReportsPage() {
                 <Pill label="Güncel Dönem" value={`${LATEST_PERSONNEL.ay} 2026`} color="#F59E0B" />
               </div>
             </div>
+          </Section>
+
+          {/* ══ Personel Devir Oranı (Turnover) ══ */}
+          <Section title="Personel Devir Oranı (Turnover)" icon={TrendingDown} color="#EF4444">
+            {/* Formül açıklama kutusu */}
+            <div className="mb-6 p-4 rounded-xl bg-gradient-to-r from-slate-50 to-blue-50 border border-slate-200">
+              <p className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 mb-2">Hesaplama Formülü</p>
+              <div className="flex flex-wrap items-center gap-2 text-sm">
+                <span className="font-mono font-bold text-[#EF4444] bg-red-50 px-2 py-1 rounded-lg">Turnover Oranı</span>
+                <span className="text-slate-400">=</span>
+                <span className="font-mono text-slate-700">(Çıkan Kişi Sayısı</span>
+                <span className="text-slate-400">÷</span>
+                <span className="font-mono text-slate-700">((Dönem Başı + Dönem Sonu) ÷ 2))</span>
+                <span className="text-slate-400">× 100</span>
+              </div>
+              <p className="text-[11px] text-slate-400 mt-1.5">Dönem başı = önceki ay toplam personel &nbsp;•&nbsp; Dönem sonu = bu ay toplam personel</p>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-6">
+              {/* Grafik */}
+              <div className="md:col-span-2">
+                <div className="h-[260px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={turnoverChart} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="gradTurnover" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#EF4444" stopOpacity={0.15} />
+                          <stop offset="100%" stopColor="#EF4444" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#94a3b8" }} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#94a3b8" }} unit="%" />
+                      <Tooltip content={<ChartTip />} formatter={(v: any) => [`%${v}`, "Turnover"]} />
+                      <Line
+                        type="monotone" dataKey="Turnover %" stroke="#EF4444" strokeWidth={3}
+                        dot={{ r: 5, fill: "#EF4444", stroke: "white", strokeWidth: 2 }}
+                        activeDot={{ r: 7, fill: "#EF4444", stroke: "white", strokeWidth: 2 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Sağ panel: özet istatistikler */}
+              <div className="flex flex-col justify-center gap-1">
+                {turnoverData.length > 0 && (
+                  <>
+                    <Pill
+                      label="Toplam Ort. Turnover"
+                      value={`%${(turnoverData.reduce((s, r) => s + r.turnoverOrani, 0) / turnoverData.length).toFixed(2)}`}
+                      color="#EF4444"
+                    />
+                    <Pill
+                      label="En Yüksek"
+                      value={`%${Math.max(...turnoverData.map(r => r.turnoverOrani))} (${turnoverData.reduce((a, r) => r.turnoverOrani > a.turnoverOrani ? r : a).ay})`}
+                      color="#EF4444"
+                    />
+                    <Pill
+                      label="En Düşük"
+                      value={`%${Math.min(...turnoverData.map(r => r.turnoverOrani))} (${turnoverData.reduce((a, r) => r.turnoverOrani < a.turnoverOrani ? r : a).ay})`}
+                      color="#10B981"
+                    />
+                    <Pill
+                      label="Son Ay (Şubat)"
+                      value={`%${turnoverData[turnoverData.length - 1]?.turnoverOrani ?? "-"}`}
+                      color="#F59E0B"
+                    />
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Aylık detay tablosu */}
+            <div className="mt-6 overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200">
+                    {["Ay", "Dönem Başı", "Dönem Sonu", "Ort. Çalışan", "Çıkan", "Turnover Oranı"].map(h => (
+                      <th key={h} className="text-left py-2.5 px-3 text-[11px] font-bold text-slate-500 uppercase tracking-wide">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {turnoverData.map((r) => (
+                    <tr key={r.ay} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                      <td className="py-2.5 px-3 font-semibold text-slate-800">{r.ay}</td>
+                      <td className="py-2.5 px-3 text-slate-600">{r.donemBasi}</td>
+                      <td className="py-2.5 px-3 text-slate-600">{r.donemSonu}</td>
+                      <td className="py-2.5 px-3 text-slate-600">{r.ortCalisan}</td>
+                      <td className="py-2.5 px-3 text-red-500 font-semibold">{r.cikan}</td>
+                      <td className="py-2.5 px-3">
+                        <span
+                          className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                            r.turnoverOrani > 15
+                              ? "bg-red-50 text-red-600"
+                              : r.turnoverOrani > 8
+                              ? "bg-amber-50 text-amber-600"
+                              : "bg-emerald-50 text-emerald-600"
+                          }`}
+                        >
+                          %{r.turnoverOrani}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Temmuz kırılımı */}
+            {LATEST_PERSONNEL.cikisErkek !== undefined && (
+              <div className="mt-5 p-4 rounded-xl bg-gradient-to-r from-red-50 to-amber-50 border border-red-100">
+                <p className="text-[11px] font-extrabold uppercase tracking-widest text-slate-400 mb-3">Temmuz 2026 — Ayrıntılı Kırılım</p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+                  {[
+                    { label: "Toplam Çıkış",   val: LATEST_PERSONNEL.toplamAyCikis ?? "—",  color: "text-red-600" },
+                    { label: "Erkek Çıkış",   val: LATEST_PERSONNEL.cikisErkek ?? "—",     color: "text-[#1F497D]" },
+                    { label: "Kadın Çıkış",   val: LATEST_PERSONNEL.cikisKadin ?? "—",     color: "text-[#4472C4]" },
+                    { label: "Aynı Ay Gi. Çık.", val: LATEST_PERSONNEL.ayniAyCikisSayisi ?? "—", color: "text-amber-600" },
+                    { label: "Toplam Giriş",   val: LATEST_PERSONNEL.girisaSayisi ?? "—",  color: "text-emerald-600" },
+                    { label: "Erkek Giriş",    val: LATEST_PERSONNEL.girisErkek ?? "—",    color: "text-[#1F497D]" },
+                    { label: "Kadın Giriş",    val: LATEST_PERSONNEL.girisKadin ?? "—",    color: "text-[#4472C4]" },
+                    { label: "Aynı Ay Gir. E.", val: LATEST_PERSONNEL.ayniAyCikisErkek ?? "—", color: "text-amber-600" },
+                  ].map(({ label, val, color }) => (
+                    <div key={label} className="bg-white rounded-lg p-2.5 border border-slate-100 shadow-sm">
+                      <div className={`text-xl font-black ${color}`}>{val}</div>
+                      <div className="text-[9px] text-slate-400 font-semibold uppercase tracking-wide mt-0.5">{label}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </Section>
         </div>
       )}
