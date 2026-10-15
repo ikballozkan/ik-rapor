@@ -18,10 +18,10 @@ import { getUsers, addUser, updateUser } from "@/app/actions";
 // ─── Sabit kullanıcılar (DB'den bağımsız her zaman mevcut) ──────────────────
 const STATIC_USERS = [
   {
-    id: "static-orhan-arabaci",
-    name: "Orhan Arabacı",
-    email: "orhan.arabaci@trizone.com",
-    password: "orhan123",
+    id: "static-fatih-melek",
+    name: "Fatih Melek",
+    email: "fatih.melek@trizone.com",
+    password: "fatih123",
     role: "KOORDINATOR",
     firstLogin: true,
     createdAt: new Date("2026-01-01"),
@@ -248,7 +248,17 @@ export default function UsersPage() {
     const local = localStorage.getItem("trizone_users");
     const localMap: Record<string, any> = {};
     if (local) {
-      JSON.parse(local).forEach((u: any) => { localMap[u.id] = u; });
+      try {
+        JSON.parse(local).forEach((u: any) => {
+          if (u.id?.includes("orhan") || u.email?.includes("arabaci") || u.name?.toLowerCase().includes("orhan")) {
+            u.id = "static-fatih-melek";
+            u.name = "Fatih Melek";
+            u.email = "fatih.melek@trizone.com";
+            u.password = "fatih123";
+          }
+          localMap[u.id] = u;
+        });
+      } catch (e) {}
     }
     const dbEmails = data.map((u: any) => u.email.toLowerCase());
     const missingStatic = STATIC_USERS.filter(
@@ -258,7 +268,7 @@ export default function UsersPage() {
     const mergedUsers = allUsers.map((u: any) => ({
       ...u,
       firstLogin: localMap[u.id]?.firstLogin ?? (u.firstLogin !== false),
-      password: u.password || localMap[u.id]?.password || "password123"
+      password: u.password || localMap[u.id]?.password || (u.id === "static-fatih-melek" ? "fatih123" : "password123")
     }));
     setUsers(mergedUsers);
     localStorage.setItem("trizone_users", JSON.stringify(mergedUsers));

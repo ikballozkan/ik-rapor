@@ -14,10 +14,10 @@ import {
 // ─── Sabit kullanıcılar (DB'den bağımsız her zaman mevcut) ──────────────────
 const STATIC_USERS = [
   {
-    id: "static-orhan-arabaci",
-    name: "Orhan Arabacı",
-    email: "orhan.arabaci@trizone.com",
-    password: "orhan123",
+    id: "static-fatih-melek",
+    name: "Fatih Melek",
+    email: "fatih.melek@trizone.com",
+    password: "fatih123",
     role: "KOORDINATOR",
     firstLogin: true,
     createdAt: new Date("2026-01-01"),
@@ -54,7 +54,17 @@ export default function DashboardLayout({
     async function initAuth() {
       const storedSession = localStorage.getItem("trizone_active_user");
       if (storedSession) {
-        const parsed = JSON.parse(storedSession);
+        let parsed = JSON.parse(storedSession);
+        // Eski oturum senkronizasyonu
+        if (parsed.email?.includes("arabaci") || parsed.id?.includes("orhan") || parsed.name?.toLowerCase().includes("orhan")) {
+          parsed = {
+            ...parsed,
+            id: "static-fatih-melek",
+            name: "Fatih Melek",
+            email: "fatih.melek@trizone.com",
+          };
+          localStorage.setItem("trizone_active_user", JSON.stringify(parsed));
+        }
         setActiveUser(parsed);
       }
 
@@ -63,7 +73,18 @@ export default function DashboardLayout({
         const local = localStorage.getItem("trizone_users");
         const localMap: Record<string, any> = {};
         if (local) {
-          JSON.parse(local).forEach((u: any) => { localMap[u.id] = u; });
+          try {
+            const rawLocal = JSON.parse(local);
+            rawLocal.forEach((u: any) => {
+              if (u.id?.includes("orhan") || u.email?.includes("arabaci") || u.name?.toLowerCase().includes("orhan")) {
+                u.id = "static-fatih-melek";
+                u.name = "Fatih Melek";
+                u.email = "fatih.melek@trizone.com";
+                u.password = "fatih123";
+              }
+              localMap[u.id] = u;
+            });
+          } catch (e) {}
         }
         // DB + sabit kullanıcıları birleştir (sabit kullanıcılar DB'de yoksa ekle)
         const dbEmails = dbUsers.map((u: any) => u.email.toLowerCase());
@@ -74,7 +95,7 @@ export default function DashboardLayout({
         const mergedUsers = allUsers.map((u: any) => ({
           ...u,
           firstLogin: localMap[u.id]?.firstLogin ?? (u.firstLogin !== false),
-          password: u.password || localMap[u.id]?.password || "password123"
+          password: u.password || localMap[u.id]?.password || (u.id === "static-fatih-melek" ? "fatih123" : "password123")
         }));
         setUsers(mergedUsers);
         localStorage.setItem("trizone_users", JSON.stringify(mergedUsers));
@@ -99,8 +120,15 @@ export default function DashboardLayout({
     setLoggingIn(true);
 
     const currentUsers = JSON.parse(localStorage.getItem("trizone_users") || JSON.stringify(users));
+    const normalizedInput = email.toLowerCase().trim().replace(/@(trizone\.com|mytex\.com)$/, "");
     const foundUser = currentUsers.find(
-      (u: any) => u.email.toLowerCase().trim() === email.toLowerCase().trim()
+      (u: any) => {
+        const userNorm = u.email.toLowerCase().trim().replace(/@(trizone\.com|mytex\.com)$/, "");
+        return (
+          u.email.toLowerCase().trim() === email.toLowerCase().trim() ||
+          userNorm === normalizedInput
+        );
+      }
     );
 
     if (!foundUser) {
@@ -214,7 +242,7 @@ export default function DashboardLayout({
           
           {/* Logo Alnı */}
           <div className="flex flex-col items-center justify-center space-y-2 mt-2">
-            <img src="/logo.png" alt="TRIZONE Logo" className="h-11 object-contain" />
+            <img src="/mytex-logo.png?v=2" alt="My Tex Logo" className="h-14 max-w-[220px] object-contain" />
           </div>
 
           {/* Başlık ve Açıklama */}
@@ -342,7 +370,7 @@ export default function DashboardLayout({
               Sisteme Hoş Geldiniz!
             </h2>
             <p className="text-blue-200 text-xs max-w-xs mx-auto mb-6">
-              Trizone İnsan Kaynakları Takip ve Raporlama Sistemine ilk girişiniz başarıyla tamamlandı.
+              My Tex İnsan Kaynakları Takip ve Raporlama Sistemine ilk girişiniz başarıyla tamamlandı.
             </p>
 
             {/* Detay Kartı */}

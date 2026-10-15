@@ -60,7 +60,7 @@ export function Sidebar() {
   return (
     <div className="flex h-full w-64 flex-col bg-slate-900 border-r border-slate-800 text-white">
       <div className="flex h-24 shrink-0 items-center justify-center p-4 bg-white border-b border-slate-200">
-        <img src="/logo.png" alt="TRIZONE Logo" className="w-full h-full object-contain" />
+        <img src="/mytex-logo.png?v=2" alt="My Tex Logo" className="w-full h-full object-contain" />
       </div>
       <div className="flex flex-1 flex-col overflow-y-auto pt-5 pb-4">
         <nav className="flex-1 space-y-1 px-3">

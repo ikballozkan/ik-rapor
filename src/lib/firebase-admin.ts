@@ -23,12 +23,12 @@ if (isConfigured) {
 const MOCK_USERS = [
   {
     id: "user-001",
-    name: "Orhan Arabac\u0131",
-    email: "orhan.arabaci@trizone.com",
+    name: "Fatih Melek",
+    email: "fatih.melek@trizone.com",
     role: "KOORDINATOR",
     canEdit: false,
     title: "Koordinat\u00f6r",
-    password: "orhan123",
+    password: "fatih123",
     firstLogin: true,
     createdAt: new Date("2026-06-14"),
   },

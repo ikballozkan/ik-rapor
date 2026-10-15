@@ -99,7 +99,7 @@ export default function ReportsPage() {
     const doc = new jsPDF();
     doc.setFont("helvetica", "bold");
     doc.setFontSize(16);
-    doc.text(`IK KPI Raporu — ${activeYear}`, 14, 18);
+    doc.text(`My Tex İK KPI Raporu — ${activeYear}`, 14, 18);
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
     doc.text(`Rapor Tarihi: ${new Date().toLocaleDateString("tr-TR")}`, 14, 26);

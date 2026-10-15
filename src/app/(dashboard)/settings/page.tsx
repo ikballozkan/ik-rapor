@@ -25,7 +25,7 @@ export default function SettingsPage() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label>Şirket Adı</Label>
-              <Input defaultValue="TRIZONE Endüstri" />
+              <Input defaultValue="My Tex" />
             </div>
             <div className="space-y-2">
               <Label>Yıllık Çalışma Saati Hedefi (Saat)</Label>

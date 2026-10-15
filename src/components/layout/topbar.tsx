@@ -62,7 +62,11 @@ export function Topbar() {
   return (
     <div className="sticky top-0 z-10 flex h-16 flex-shrink-0 bg-white shadow-sm border-b border-slate-200">
       <div className="flex flex-1 justify-between px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-1">
+        <div className="flex flex-1 items-center">
+          <div className="flex items-center gap-3 pr-4 border-r border-slate-100 mr-2">
+            <img src="/mytex-logo.png?v=2" alt="My Tex Logo" className="h-7 w-auto object-contain" />
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider hidden lg:inline-block">İK Portalı</span>
+          </div>
           <form className="flex w-full md:ml-0" action="#" method="GET">
             <label htmlFor="search-field" className="sr-only">
               Ara
